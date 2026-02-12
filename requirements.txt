@@ -5,3 +5,7 @@ fastapi
 uvicorn
 requests
 sqlalchemy
+
+sentence-transformers
+numpy
+scikit-learn

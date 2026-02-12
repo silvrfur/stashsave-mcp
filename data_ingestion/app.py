@@ -4,6 +4,8 @@ import json
 from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from embeddings.search import semantic_search  
+
 from data_ingestion.github_memory.db import SessionLocal, engine, Base
 from data_ingestion.github_memory.ingest import ingest_github_stars
 from data_ingestion.instagram_memory.enrich_instagram import enrich_instagram_rows
@@ -95,3 +97,10 @@ def ingest_whatsapp(user_id: int, db: Session = Depends(get_db)):
 
     except Exception:
         raise HTTPException(status_code=500, detail="WhatsApp ingestion failed")
+
+
+#Search API
+@app.get("/search")
+def search(query: str, user_id: int, top_k: int = 5):
+    results = semantic_search(query=query, user_id=user_id, top_k=top_k)
+    return {"query": query, "user_id": user_id, "results": results}
