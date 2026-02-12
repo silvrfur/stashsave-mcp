@@ -1,0 +1,12 @@
+[
+  {
+    "tool": "Supabase",
+    "text": "Open-source Firebase alternative",
+    "url": "https://supabase.com"
+  },
+  {
+    "tool": "LangChain",
+    "text": "Framework for building LLM apps",
+    "url": "https://github.com/langchain-ai/langchain"
+  }
+]
