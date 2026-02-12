@@ -1,0 +1,7 @@
+# instaloader
+# githubstar #requires python 3.13 or higher
+python-dotenv
+fastapi
+uvicorn
+requests
+sqlalchemy
