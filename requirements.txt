@@ -9,3 +9,5 @@ sqlalchemy
 sentence-transformers
 numpy
 scikit-learn
+
+mcp
