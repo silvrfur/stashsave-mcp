@@ -19,8 +19,5 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # Copy project files
 COPY . .
 
-# Preload embedding model at build-time to avoid first-run cold start in Orchestra
-RUN python -c "from embeddings.model_loader import get_model; get_model()"
-
 # Default command -> run MCP server as a module so top-level packages resolve
 CMD ["python", "-m", "mcp_server.server"]
