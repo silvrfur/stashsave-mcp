@@ -3,23 +3,24 @@ from mcp.server import FastMCP
 
 from data_ingestion.github_memory.db import SessionLocal
 from data_ingestion.github_memory.models import Memory
-from embeddings.search import semantic_search_by_vector
+from embeddings.search import semantic_search
 
 mcp = FastMCP("stashsave-memory")
 
 
 @mcp.tool()
-def search_saves(query_embedding: list[float], user_id: str, limit: int = 5):
+def search_saves(query: str, user_id: str, limit: int = 5):
     """
-    Semantic search over user's saved developer resources using a precomputed query embedding.
+    Semantic search over user's saved developer resources from raw query text.
+    Query embedding is computed server-side (HF Inference API when configured).
     """
-    results = semantic_search_by_vector(
-        query_embedding=query_embedding,
+    results = semantic_search(
+        query=query,
         user_id=user_id,
         top_k=limit,
     )
     return {
-        "embedding_dimensions": len(query_embedding),
+        "query": query,
         "user_id": user_id,
         "count": len(results),
         "results": results,

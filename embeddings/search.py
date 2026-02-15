@@ -2,6 +2,7 @@ from sqlalchemy.orm import Session
 
 from data_ingestion.github_memory.db import SessionLocal
 from data_ingestion.github_memory.models import Memory
+from embeddings.query_embedder import embed_query
 
 
 def _search_with_vector(db: Session, query_vector: list[float], user_id: str, top_k: int):
@@ -50,8 +51,5 @@ def semantic_search_by_vector(query_embedding: list[float], user_id: str, top_k:
 
 
 def semantic_search(query: str, user_id: str, top_k: int = 5):
-    # Lazy import to keep MCP runtime independent of sentence-transformers.
-    from embeddings.model_loader import get_model
-
-    query_vector = get_model().encode(query).tolist()
+    query_vector = embed_query(query)
     return semantic_search_by_vector(query_embedding=query_vector, user_id=user_id, top_k=top_k)
