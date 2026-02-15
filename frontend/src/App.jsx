@@ -9,6 +9,7 @@ function App() {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(false);
   const [importMessage, setImportMessage] = useState("");
+  const [importStage, setImportStage] = useState("");
   const [searchMessage, setSearchMessage] = useState("");
   const [query, setQuery] = useState("");
   const [topK, setTopK] = useState(5);
@@ -59,11 +60,13 @@ function App() {
     await supabase.auth.signOut();
     setResults([]);
     setImportMessage("");
+    setImportStage("");
     setSearchMessage("");
   };
 
   const handleImport = async () => {
     setImportMessage("");
+    setImportStage("");
     if (!session?.user?.id) {
       setImportMessage("Login required.");
       return;
@@ -78,15 +81,19 @@ function App() {
     }
 
     setLoading(true);
+    setImportStage("Importing GitHub stars...");
     try {
       const url = `${API_BASE_URL}/ingest/github/${session.user.id}?access_token=${encodeURIComponent(providerToken)}`;
       const response = await fetch(url, { method: "POST" });
+      setImportStage("Generating embeddings and saving to database...");
       const body = await response.json();
       if (!response.ok) {
         throw new Error(body.detail || "Import failed");
       }
-      setImportMessage(`Imported/updated ${body.ingested} starred repositories.`);
+      setImportStage("Complete.");
+      setImportMessage(`Imported/updated ${body.ingested} starred repositories. Go ahead with search.`);
     } catch (error) {
+      setImportStage("Failed.");
       setImportMessage(error.message || "Import failed");
     } finally {
       setLoading(false);
@@ -169,6 +176,7 @@ function App() {
                   Import GitHub Stars
                 </button>
               </div>
+              {importStage ? <p className="message">Status: {importStage}</p> : null}
               {importMessage ? <p className="message">{importMessage}</p> : null}
             </section>
 

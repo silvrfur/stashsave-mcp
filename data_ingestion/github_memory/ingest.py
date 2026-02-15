@@ -1,14 +1,20 @@
 from sqlalchemy.orm import Session
 
 from data_ingestion.github_memory.github_api import fetch_starred_repos
-from data_ingestion.github_memory.models import Memory
+from data_ingestion.github_memory.models import Memory, User
 from embeddings.model_loader import get_model
 from embeddings.text_builder import build_embedding_text
 
 
 def ingest_github_stars(db: Session, user_id: str, access_token: str):
+    user = db.query(User).filter(User.id == user_id).first()
+    if user is None:
+        db.add(User(id=user_id))
+        db.flush()
+
     repos = fetch_starred_repos(access_token)
     if not repos:
+        db.commit()
         return 0
 
     texts = []

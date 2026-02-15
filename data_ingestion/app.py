@@ -1,3 +1,4 @@
+import logging
 import os
 
 from fastapi import FastAPI, Depends, HTTPException
@@ -35,6 +36,7 @@ with engine.begin() as conn:
     )
 
 app = FastAPI(title="StashSave Ingestion API")
+logger = logging.getLogger(__name__)
 
 allowed_origins = os.getenv(
     "FRONTEND_ORIGINS",
@@ -79,8 +81,9 @@ def ingest_github(user_id: str, access_token: str, db: Session = Depends(get_db)
     try:
         count = ingest_github_stars(db, user_id, access_token)
         return {"source": "github", "ingested": count}
-    except Exception:
-        raise HTTPException(status_code=500, detail="GitHub ingestion failed")
+    except Exception as exc:
+        logger.exception("GitHub ingestion failed for user_id=%s", user_id)
+        raise HTTPException(status_code=500, detail=f"GitHub ingestion failed: {exc}")
 
 
 # Search API

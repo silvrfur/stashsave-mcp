@@ -2,21 +2,25 @@ FROM python:3.11-slim
 
 # Prevent Python from buffering stdout/stderr
 ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
 
 WORKDIR /app
 
-# Install system deps (needed for sentence-transformers)
-# RUN apt-get update && apt-get install -y \
-#     build-essential \
-#     && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first (for caching)
 COPY requirements.mcp.txt .
 
-RUN pip install --no-cache-dir -r requirements.mcp.txt
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.mcp.txt
 
 # Copy project files
 COPY . .
+
+# Preload embedding model at build-time to avoid first-run cold start in Orchestra
+RUN python -c "from embeddings.model_loader import get_model; get_model()"
 
 # Default command -> run MCP server as a module so top-level packages resolve
 CMD ["python", "-m", "mcp_server.server"]

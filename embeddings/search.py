@@ -4,6 +4,7 @@ from data_ingestion.github_memory.db import SessionLocal
 from data_ingestion.github_memory.models import Memory
 from embeddings.model_loader import get_model
 
+
 def semantic_search(query: str, user_id: str, top_k: int = 5):
     db: Session = SessionLocal()
 

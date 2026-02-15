@@ -1,4 +1,5 @@
 from sqlalchemy import Column, String, Text, DateTime, ForeignKey, UniqueConstraint, text
+from sqlalchemy.dialects.postgresql import UUID
 from pgvector.sqlalchemy import Vector
 from data_ingestion.github_memory.db import Base
 
@@ -7,7 +8,7 @@ EMBEDDING_DIM = 384
 class User(Base):
     __tablename__ = "users"
 
-    id = Column(String, primary_key=True, index=True, server_default=text("gen_random_uuid()"))
+    id = Column(UUID(as_uuid=False), primary_key=True, index=True, server_default=text("gen_random_uuid()"))
     github_username = Column(String, unique=True, index=True)
     access_token = Column(String)  # store encrypted later
 
@@ -18,8 +19,8 @@ class Memory(Base):
         UniqueConstraint("user_id", "url", name="uq_memories_user_url"),
     )
 
-    id = Column(String, primary_key=True, index=True, server_default=text("gen_random_uuid()"))
-    user_id = Column(String, ForeignKey("users.id"))
+    id = Column(UUID(as_uuid=False), primary_key=True, index=True, server_default=text("gen_random_uuid()"))
+    user_id = Column(UUID(as_uuid=False), ForeignKey("users.id"))
     source = Column(String)  # "github"
     title = Column(String)
     description = Column(Text)
