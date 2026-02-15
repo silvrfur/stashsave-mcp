@@ -7,7 +7,7 @@ mcp = FastMCP("stashsave-memory")
 
 
 @mcp.tool()
-def search_saves(query: str, user_id: int, limit: int = 5):
+def search_saves(query: str, user_id: str, limit: int = 5):
     """
     Semantic search over user's saved developer resources.
     """

@@ -3,3 +3,8 @@ fastapi
 pydantic
 uvicorn
 mcp
+sqlalchemy
+psycopg[binary]
+pgvector
+python-dotenv
+sentence-transformers

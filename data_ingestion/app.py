@@ -1,24 +1,52 @@
-from pathlib import Path
-import json
+import os
 
 from fastapi import FastAPI, Depends, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from embeddings.search import semantic_search  
-
+from embeddings.search import semantic_search
 from data_ingestion.github_memory.db import SessionLocal, engine, Base
 from data_ingestion.github_memory.ingest import ingest_github_stars
-from data_ingestion.instagram_memory.enrich_instagram import enrich_instagram_rows
-from data_ingestion.whatsapp_memory.enrich_whatsapp import enrich_whatsapp_rows
 
+
+with engine.begin() as conn:
+    vector_enabled = conn.execute(
+        text("SELECT 1 FROM pg_extension WHERE extname = 'vector'")
+    ).first()
+    if not vector_enabled:
+        try:
+            conn.execute(text("CREATE EXTENSION vector"))
+        except Exception as exc:
+            raise RuntimeError(
+                "pgvector extension is not enabled. Enable extension 'vector' in Supabase."
+            ) from exc
 
 # Create DB tables on startup
 Base.metadata.create_all(bind=engine)
 
+with engine.begin() as conn:
+    conn.execute(text("CREATE INDEX IF NOT EXISTS idx_memories_user_id ON memories (user_id)"))
+    conn.execute(
+        text(
+            "CREATE INDEX IF NOT EXISTS idx_memories_embedding_cosine "
+            "ON memories USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100)"
+        )
+    )
+
 app = FastAPI(title="StashSave Ingestion API")
-BASE_DIR = Path(__file__).resolve().parent
-INSTAGRAM_PATH = BASE_DIR / "instagram_memory" / "mock_instagram.json"
-WHATSAPP_PATH = BASE_DIR / "whatsapp_memory" / "mock_whatsapp.json"
+
+allowed_origins = os.getenv(
+    "FRONTEND_ORIGINS",
+    "http://localhost:5173,http://127.0.0.1:5173",
+).split(",")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[origin.strip() for origin in allowed_origins if origin.strip()],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 # -------------------------
@@ -44,7 +72,7 @@ def root():
 # GitHub Stars Ingestion
 # -------------------------
 @app.post("/ingest/github/{user_id}", status_code=201)
-def ingest_github(user_id: int, access_token: str, db: Session = Depends(get_db)):
+def ingest_github(user_id: str, access_token: str, db: Session = Depends(get_db)):
     """
     Ingest real GitHub starred repositories for a user.
     """
@@ -55,52 +83,8 @@ def ingest_github(user_id: int, access_token: str, db: Session = Depends(get_db)
         raise HTTPException(status_code=500, detail="GitHub ingestion failed")
 
 
-# -------------------------
-# Instagram Mock Ingestion
-# -------------------------
-@app.post("/ingest/instagram/{user_id}", status_code=201)
-def ingest_instagram(user_id: int, db: Session = Depends(get_db)):
-    """
-    Ingest mocked Instagram saved tools → enrich → Memory table.
-    """
-    if not INSTAGRAM_PATH.exists():
-        raise HTTPException(status_code=404, detail="Mock Instagram data not found")
-
-    try:
-        with INSTAGRAM_PATH.open("r", encoding="utf-8") as f:
-            rows = json.load(f)
-
-        count = enrich_instagram_rows(db, user_id, rows)
-        return {"source": "instagram", "ingested": count}
-
-    except Exception:
-        raise HTTPException(status_code=500, detail="Instagram ingestion failed")
-
-
-# -------------------------
-# WhatsApp Mock Ingestion
-# -------------------------
-@app.post("/ingest/whatsapp/{user_id}", status_code=201)
-def ingest_whatsapp(user_id: int, db: Session = Depends(get_db)):
-    """
-    Ingest mocked WhatsApp tool mentions → enrich → Memory table.
-    """
-    if not WHATSAPP_PATH.exists():
-        raise HTTPException(status_code=404, detail="Mock WhatsApp data not found")
-
-    try:
-        with WHATSAPP_PATH.open("r", encoding="utf-8") as f:
-            rows = json.load(f)
-
-        count = enrich_whatsapp_rows(db, user_id, rows)
-        return {"source": "whatsapp", "ingested": count}
-
-    except Exception:
-        raise HTTPException(status_code=500, detail="WhatsApp ingestion failed")
-
-
-#Search API
+# Search API
 @app.get("/search")
-def search(query: str, user_id: int, top_k: int = 5):
+def search(query: str, user_id: str, top_k: int = 5):
     results = semantic_search(query=query, user_id=user_id, top_k=top_k)
     return {"query": query, "user_id": user_id, "results": results}

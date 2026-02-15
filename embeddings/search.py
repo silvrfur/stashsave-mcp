@@ -3,33 +3,40 @@ from sqlalchemy.orm import Session
 from data_ingestion.github_memory.db import SessionLocal
 from data_ingestion.github_memory.models import Memory
 from embeddings.model_loader import get_model
-from .vector_store import search_vectors
 
-def semantic_search(query: str, user_id: int, top_k: int = 5):
+def semantic_search(query: str, user_id: str, top_k: int = 5):
     db: Session = SessionLocal()
 
-    query_vector = get_model().encode(query)
+    try:
+        query_vector = get_model().encode(query).tolist()
+        distance = Memory.embedding.cosine_distance(query_vector)
 
-    matches = search_vectors(query_vector, user_id=user_id, top_k=top_k)
-
-    results = []
-
-    for memory_id, score in matches:
-        memory = (
-            db.query(Memory)
-            .filter(Memory.id == memory_id, Memory.user_id == user_id)
-            .first()
+        rows = (
+            db.query(Memory, distance.label("distance"))
+            .filter(
+                Memory.user_id == user_id,
+                Memory.embedding.isnot(None),
+            )
+            .order_by(distance.asc())
+            .limit(top_k)
+            .all()
         )
-        if memory:
-            results.append({
-                "id": memory.id,
-                "user_id": memory.user_id,
-                "title": memory.title,
-                "description": memory.description,
-                "url": memory.url,
-                "tags": memory.tags,
-                "score": round(score, 4),
-            })
 
-    db.close()
-    return results
+        results = []
+        for memory, raw_distance in rows:
+            score = max(0.0, 1.0 - float(raw_distance))
+            results.append(
+                {
+                    "id": memory.id,
+                    "user_id": memory.user_id,
+                    "title": memory.title,
+                    "description": memory.description,
+                    "url": memory.url,
+                    "tags": memory.tags,
+                    "score": round(score, 4),
+                }
+            )
+
+        return results
+    finally:
+        db.close()
